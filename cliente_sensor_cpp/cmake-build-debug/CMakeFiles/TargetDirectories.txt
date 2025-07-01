@@ -1,0 +1,3 @@
+B:/aea/redes-sm/cliente_sensor_cpp/cmake-build-debug/CMakeFiles/cliente_sensor_cpp.dir
+B:/aea/redes-sm/cliente_sensor_cpp/cmake-build-debug/CMakeFiles/edit_cache.dir
+B:/aea/redes-sm/cliente_sensor_cpp/cmake-build-debug/CMakeFiles/rebuild_cache.dir
