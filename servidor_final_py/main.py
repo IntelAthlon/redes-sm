@@ -12,7 +12,7 @@ init_db()
 # Servidor TCP que recibe datos del intermediario
 # =========================
 def start_socket_server():
-    IP = '0.0.0.0'
+    IP = '127.0.0.1'
     PORT = 5000
     print(f"[~] Servidor final escuchando en {IP}:{PORT} (TCP)...")
 
@@ -26,15 +26,21 @@ def start_socket_server():
 
 def handle_connection(conn, addr):
     with conn:
+        buffer = b""
         try:
-            data = conn.recv(2048)
-            if not data:
-                return
-            sensor_data = json.loads(data.decode('utf-8'))
-            insertar_medicion(sensor_data)
-            print(f"[✓] Medición almacenada desde sensor {sensor_data['id']}")
+            while True:
+                data = conn.recv(1024)
+                if not data:
+                    break
+                buffer += data
+                while b'\n' in buffer:
+                    line, buffer = buffer.split(b'\n', 1)
+                    sensor_data = json.loads(line.decode('utf-8'))
+                    insertar_medicion(sensor_data)
+                    print(f"[✓] Medición almacenada desde sensor {sensor_data['id']}")
         except Exception as e:
             print(f"[X] Error procesando datos: {e}")
+
 
 # =========================
 # API REST para consulta
@@ -62,4 +68,4 @@ def api_mediciones():
 # =========================
 if __name__ == '__main__':
     threading.Thread(target=start_socket_server, daemon=True).start()
-    app.run(host='0.0.0.0', port=8000)
+    app.run(host='127.0.0.1', port=8000)

@@ -1,0 +1,14 @@
+# ninja log v6
+19	377	7733154957233240	build.ninja	480dcfb58eb2501b
+2777	2948	7733148376857574	cliente_sensor_cpp.exe	33432eb4fd256041
+37	2776	7733148349454756	CMakeFiles/cliente_sensor_cpp.dir/main.cpp.obj	5cf130b75e845107
+53	225	7733153259045624	CMakeFiles/cliente_sensor_cpp.dir/C_/Program_Files/FireDaemon_OpenSSL_3/include/openssl/applink.c.obj	d2c5c7bd0855687d
+3	356	7733154957233240	build.ninja	480dcfb58eb2501b
+20	3237	7733155379602543	CMakeFiles/cliente_sensor_cpp.dir/main.cpp.obj	5cf130b75e845107
+3238	3453	7733155411777862	cliente_sensor_cpp.exe	33432eb4fd256041
+45	3363	7733160906974615	CMakeFiles/cliente_sensor_cpp.dir/main.cpp.obj	5cf130b75e845107
+3366	3602	7733160940178121	cliente_sensor_cpp.exe	33432eb4fd256041
+37	3318	7733161834066761	CMakeFiles/cliente_sensor_cpp.dir/main.cpp.obj	5cf130b75e845107
+3320	3534	7733161866893869	cliente_sensor_cpp.exe	33432eb4fd256041
+28	3007	7733162781989292	CMakeFiles/cliente_sensor_cpp.dir/main.cpp.obj	5cf130b75e845107
+3008	3175	7733162811784292	cliente_sensor_cpp.exe	33432eb4fd256041

@@ -119,7 +119,7 @@ CMAKE_INSTALL_PREFIX:PATH=C:/Program Files (x86)/cliente_sensor_cpp
 CMAKE_LINKER:FILEPATH=C:/Program Files/JetBrains/CLion 2024.1.4/bin/mingw/bin/ld.exe
 
 //make program
-CMAKE_MAKE_PROGRAM:FILEPATH=C:/Program Files/JetBrains/CLion 2024.1.4/bin/ninja/win/x64/ninja.exe
+CMAKE_MAKE_PROGRAM:FILEPATH=C:/PROGRA~1/JETBRA~1/CLION2~1.4/bin/ninja/win/x64/ninja.exe
 
 //Flags used by the linker during the creation of modules during
 // all build types.
@@ -241,6 +241,21 @@ CMAKE_TAPI:FILEPATH=CMAKE_TAPI-NOTFOUND
 // during the make.  This is useful for debugging only. With Visual
 // Studio IDE projects all commands are done without /nologo.
 CMAKE_VERBOSE_MAKEFILE:BOOL=FALSE
+
+//Path to a library.
+LIB_EAY:FILEPATH=C:/Program Files/FireDaemon OpenSSL 3/lib/libcrypto.lib
+
+//Path to a file.
+OPENSSL_INCLUDE_DIR:PATH=C:/Program Files/FireDaemon OpenSSL 3/include
+
+//Arguments to supply to pkg-config
+PKG_CONFIG_ARGN:STRING=
+
+//pkg-config executable
+PKG_CONFIG_EXECUTABLE:FILEPATH=PKG_CONFIG_EXECUTABLE-NOTFOUND
+
+//Path to a library.
+SSL_EAY:FILEPATH=C:/Program Files/FireDaemon OpenSSL 3/lib/libssl.lib
 
 //Value Computed by CMake
 cliente_sensor_cpp_BINARY_DIR:STATIC=B:/aea/redes-sm/cliente_sensor_cpp/cmake-build-debug
@@ -410,6 +425,18 @@ CMAKE_STRIP-ADVANCED:INTERNAL=1
 CMAKE_TAPI-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: CMAKE_VERBOSE_MAKEFILE
 CMAKE_VERBOSE_MAKEFILE-ADVANCED:INTERNAL=1
+//Details about finding OpenSSL
+FIND_PACKAGE_MESSAGE_DETAILS_OpenSSL:INTERNAL=[C:/Program Files/FireDaemon OpenSSL 3/lib/libcrypto.lib][C:/Program Files/FireDaemon OpenSSL 3/include][c ][v3.5.0()]
+//ADVANCED property for variable: LIB_EAY
+LIB_EAY-ADVANCED:INTERNAL=1
+//ADVANCED property for variable: OPENSSL_INCLUDE_DIR
+OPENSSL_INCLUDE_DIR-ADVANCED:INTERNAL=1
+//ADVANCED property for variable: PKG_CONFIG_ARGN
+PKG_CONFIG_ARGN-ADVANCED:INTERNAL=1
+//ADVANCED property for variable: PKG_CONFIG_EXECUTABLE
+PKG_CONFIG_EXECUTABLE-ADVANCED:INTERNAL=1
+//ADVANCED property for variable: SSL_EAY
+SSL_EAY-ADVANCED:INTERNAL=1
 //linker supports push/pop state
 _CMAKE_LINKER_PUSHPOP_STATE_SUPPORTED:INTERNAL=TRUE
 

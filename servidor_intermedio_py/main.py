@@ -8,7 +8,7 @@ from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives import serialization
 
 # CONFIGURACIÓN
-IP = '0.0.0.0'
+IP = '127.0.0.1'
 PORT = 4000
 PUBLIC_KEY_PATH = 'public.pem'
 
@@ -34,6 +34,9 @@ def verify_signature(data: bytes, signature: bytes) -> bool:
             padding.PKCS1v15(),
             hashes.SHA256()
         )
+        print(f"Recibido data size: {len(data)}")
+        print(f"Recibido signature size: {len(signature)}")
+
         return True
     except Exception as e:
         print(f"[!] Firma inválida: {e}")
@@ -59,7 +62,7 @@ def parse_sensor_data(data: bytes):
 def send_to_final_server(sensor_dict: dict):
     try:
         with socket.create_connection((SERVER_FINAL_IP, SERVER_FINAL_PORT), timeout=2) as s:
-            payload = json.dumps(sensor_dict).encode('utf-8')
+            payload = json.dumps(sensor_dict).encode('utf-8') + b'\n'
             s.sendall(payload)
             print(f"[→] Datos reenviados al servidor final: {sensor_dict}")
     except Exception as e:
@@ -69,7 +72,13 @@ def send_to_final_server(sensor_dict: dict):
 def handle_client(conn, addr):
     print(f"[+] Conexión desde {addr}")
     try:
-        packet = conn.recv(DATA_SIZE + SIG_SIZE)
+        packet = b''
+        while len(packet) < DATA_SIZE + SIG_SIZE:
+            chunk = conn.recv((DATA_SIZE + SIG_SIZE) - len(packet))
+            if not chunk:
+                break
+            packet += chunk
+
         if len(packet) < DATA_SIZE + SIG_SIZE:
             print("[!] Paquete incompleto")
             return
@@ -79,13 +88,17 @@ def handle_client(conn, addr):
 
         if verify_signature(data, signature):
             parsed = parse_sensor_data(data)
-            send_to_final_server(parsed)  # 👈 Reenvío real
+            print(f"[✓] Firma válida. Datos: {parsed}")
+            send_to_final_server(parsed)
         else:
             print("[X] Firma inválida, datos descartados.")
     except Exception as e:
+        import traceback
         print(f"[!] Error en conexión: {e}")
+        traceback.print_exc()
     finally:
         conn.close()
+
 
 # Bucle principal del servidor intermedio
 def start_server():
@@ -93,7 +106,6 @@ def start_server():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind((IP, PORT))
         s.listen()
-
         while True:
             conn, addr = s.accept()
             threading.Thread(target=handle_client, args=(conn, addr), daemon=True).start()
