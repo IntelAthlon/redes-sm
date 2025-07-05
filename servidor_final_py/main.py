@@ -1,5 +1,5 @@
     # servidor_final/main.py
-    import threading
+#    import threading
     import socket
     import json
     from flask import Flask, jsonify
