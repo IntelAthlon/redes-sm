@@ -1,7 +1,6 @@
 import threading
 import time
 import requests
-from datetime import datetime
 from flask import Flask, jsonify, render_template_string
 
 # --- CONFIGURACIÓN ---
@@ -18,6 +17,7 @@ alertas_ids = set()
 # --- LÓGICA DE ALERTA ---
 def verificar_alertas(medicion):
     alertas = []
+
     if not (TEMP_MIN <= medicion["temperatura"] <= TEMP_MAX):
         alertas.append(f"[{medicion['timestamp']}] Sensor {medicion['sensor_id']} - Temperatura fuera de rango: {medicion['temperatura']} °C")
 
@@ -75,6 +75,7 @@ def home():
         <style>
             body { font-family: sans-serif; background: #f4f4f4; padding: 20px; }
             h1, h2 { color: #2c3e50; }
+            #alertas { overflow-y: scroll; height: 400px; }
             .alerta { background: #fff0f0; border: 1px solid #e74c3c; padding: 10px; margin-bottom: 10px; }
             .container { display: flex; flex-wrap: wrap; gap: 20px; }
             .panel { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); flex: 1; min-width: 300px; }
