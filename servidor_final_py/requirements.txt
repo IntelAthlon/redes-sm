@@ -1,1 +1,5 @@
 Flask
+opcua
+cryptography
+pybase64
+threaded
