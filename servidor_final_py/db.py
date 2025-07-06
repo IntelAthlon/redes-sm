@@ -1,4 +1,3 @@
-# servidor_final/db.py
 import sqlite3
 import base64
 import json
@@ -23,7 +22,7 @@ def init_db():
     conn.close()
 
 def insertar_medicion(encoded_json_str):
-    conn = sqlite3.connect(DB_FILE)
+    conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute('''
         INSERT INTO mediciones (sensor_id, timestamp, temperatura, presion, humedad)
@@ -34,7 +33,7 @@ def insertar_medicion(encoded_json_str):
 
     # Luego actualizamos con JSON decodificado
     data = json.loads(base64.b64decode(encoded_json_str.encode('utf-8')).decode('utf-8'))
-    conn = sqlite3.connect(DB_FILE)
+    conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute('''
         UPDATE mediciones
