@@ -1,14 +1,28 @@
-from opcua import Server
+from opcua import Server, ua
 from db import obtener_mediciones
 import time
-import base64
-import json
+import socket
+# Obtener IP
+# Código obtenido de stackoverflow, pregunta 166506
+def obtener_ip_servidor():
+    s = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
+    s.settimeout(0)
+    try:
+        s.connect(('10.254.254.254', 1))
+        IP = s.getsockname()[0]
+    except Exception:
+        IP = '127.0.0.1'
+    finally:
+        s.close()
+    return IP
+
 def iniciar_opcua():
     server = Server()
-    server.set_endpoint("opc.tcp://0.0.0.0:4840/")
-    server.set_server_name("Servidor OPC UA IoT Industrial")
+    server.set_endpoint(f"opc.tcp://{obtener_ip_servidor()}:4840/")
+    server.set_server_name("Servidor OPC UA")
+    server.set_security_policy([ua.SecurityPolicyType.NoSecurity])
 
-    namespace = server.register_namespace("http://iot-industrial.com")
+    namespace = server.register_namespace("http://proyectosemestral.com")
     objeto_sensores = server.nodes.objects.add_object(namespace, "Sensores")
 
     # Variables dinámicas (estas se actualizarán periódicamente)
@@ -16,12 +30,7 @@ def iniciar_opcua():
     pres_var = objeto_sensores.add_variable(namespace, "Presion", 0.0)
     hum_var = objeto_sensores.add_variable(namespace, "Humedad", 0.0)
 
-    temp_var.set_writable()
-    pres_var.set_writable()
-    hum_var.set_writable()
-
     server.start()
-    print("[~] Servidor OPC UA activo en puerto 4840...")
 
     try:
         while True:
@@ -39,6 +48,3 @@ def iniciar_opcua():
             time.sleep(3)
     finally:
         server.stop()
-
-if __name__ == "__main__":
-    iniciar_opcua()

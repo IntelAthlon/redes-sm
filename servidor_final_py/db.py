@@ -3,11 +3,11 @@ import base64
 import json
 from datetime import datetime
 
-DB_PATH = 'database.db'
+BASEDATOS = 'database.db'
 
-def init_db():
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
+def inicializar_db():
+    conex = sqlite3.connect(BASEDATOS)
+    c = conex.cursor()
     c.execute('''
         CREATE TABLE IF NOT EXISTS mediciones (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -18,35 +18,34 @@ def init_db():
             humedad REAL
         )
     ''')
-    conn.commit()
-    conn.close()
+    conex.commit()
+    conex.close()
 
-def insertar_medicion(encoded_json_str):
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
+def insertar_medicion(json_crudo):
+    conex = sqlite3.connect(BASEDATOS)
+    cursor = conex.cursor()
     cursor.execute('''
         INSERT INTO mediciones (sensor_id, timestamp, temperatura, presion, humedad)
         VALUES (?, datetime('now'), NULL, NULL, NULL)
-    ''', (-1,))  # marcamos como temporal
-    conn.commit()
-    conn.close()
+    ''', (-1,))
+    conex.commit()
+    conex.close()
 
-    # Luego actualizamos con JSON decodificado
-    data = json.loads(base64.b64decode(encoded_json_str.encode('utf-8')).decode('utf-8'))
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
+    data = json.loads(base64.b64decode(json_crudo.encode('utf-8')).decode('utf-8'))
+    conex = sqlite3.connect(BASEDATOS)
+    cursor = conex.cursor()
     cursor.execute('''
         UPDATE mediciones
         SET sensor_id=?, timestamp=?, temperatura=?, presion=?, humedad=?
         WHERE id=(SELECT MAX(id) FROM mediciones)
     ''', (data['id'], data['timestamp'], data['temperatura'], data['presion'], data['humedad']))
-    conn.commit()
-    conn.close()
+    conex.commit()
+    conex.close()
 
 def obtener_mediciones():
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
+    conex = sqlite3.connect(BASEDATOS)
+    c = conex.cursor()
     c.execute('SELECT * FROM mediciones ORDER BY timestamp DESC')
-    rows = c.fetchall()
-    conn.close()
-    return rows
+    filas = c.fetchall()
+    conex.close()
+    return filas
