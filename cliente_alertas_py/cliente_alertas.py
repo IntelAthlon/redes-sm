@@ -1,18 +1,49 @@
+from datetime import datetime as dt
+# datetime tiene un conflicto de nombre con si mismo? lol
 import threading
 import time
 import requests
+import socket
+import json
+import os
 from flask import Flask, jsonify, render_template_string
 
+# --- CARGA DE CONFIGURACIÓN ---
+CONFIG_PATH = "config.json"
+
+if not os.path.exists(CONFIG_PATH):
+    raise FileNotFoundError(f"Archivo de configuración no encontrado: {CONFIG_PATH}")
+
+with open(CONFIG_PATH, "r") as f:
+    config = json.load(f)
+
 # --- CONFIGURACIÓN ---
-API_URL = "http://127.0.0.1:8000/api/mediciones"
-TEMP_MIN, TEMP_MAX = 21.0, 29.0
-PRES_MIN, PRES_MAX = 992.0, 1022.0
-HUM_MIN, HUM_MAX = 35.0, 68.0
-CONSULTA_INTERVALO = 10  # segundos
+API_URL = config["API_URL"]
+TEMP_MIN = config["TEMP_MIN"]
+TEMP_MAX = config["TEMP_MAX"]
+PRES_MIN = config["PRES_MIN"]
+PRES_MAX = config["PRES_MAX"]
+HUM_MIN = config["HUM_MIN"]
+HUM_MAX = config["HUM_MAX"]
+CONSULTA_INTERVALO = config["CONSULTA_INTERVALO"]
 
 # --- ESTADO DE ALERTAS GLOBAL ---
 alertas_activas = []
 alertas_ids = set()
+
+# --- OBTENER IP ---
+# Código obtenido de stackoverflow, pregunta 166506
+def obtener_ip_servidor():
+    s = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
+    s.settimeout(0)
+    try:
+        s.connect(('10.254.254.254', 1))
+        IP = s.getsockname()[0]
+    except Exception:
+        IP = '127.0.0.1'
+    finally:
+        s.close()
+    return IP
 
 # --- LÓGICA DE ALERTA ---
 def verificar_alertas(medicion):
@@ -54,12 +85,10 @@ def cliente_consulta():
                     alertas_ids.add(clave)
 
         if nuevas_alertas:
-            print(f"\n--- ALERTAS NUEVAS ---")
-            for a in nuevas_alertas:
-                print(a)
             alertas_activas.extend(nuevas_alertas)
 
         time.sleep(CONSULTA_INTERVALO)
+        print(f"Cliente disponible en {obtener_ip_servidor()}:9000")
 
 # --- SERVIDOR WEB ---
 app = Flask(__name__)
@@ -200,17 +229,24 @@ def api_alertas():
 @app.route('/api/ultimas_mediciones')
 def api_ultimas_mediciones():
     datos = consultar_api()
-    # Agrupa por sensor_id y toma la última medición por sensor
+
     sensores = {}
+    ahora = dt.now()
+
     for d in datos:
-        sensores[d['sensor_id']] = d
+        ts = dt.strptime(d['timestamp'], "%Y-%m-%d %H:%M:%S")
+        # Filtrar por sensores activos, 30s espera
+        if (ahora-ts).total_seconds()<=30:
+            sensores[d['sensor_id']] = d
+
     return jsonify(list(sensores.values()))
 
 # --- EJECUCIÓN ---
 if __name__ == "__main__":
+
     # Hilo para consultar la API en segundo plano
     threading.Thread(target=cliente_consulta, daemon=True).start()
 
     # Inicia servidor web Flask
-    app.run(host="127.0.0.1", port=9000)
+    app.run(host=obtener_ip_servidor(), port=9000)
 

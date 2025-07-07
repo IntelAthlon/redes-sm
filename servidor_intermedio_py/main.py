@@ -8,48 +8,48 @@ from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives import serialization
 
 # CONFIGURACIÓN
-IP = '127.0.0.1'
-PORT = 4000
-PUBLIC_KEY_PATH = 'public.pem'
+PUERTO = 4000
+SERVER_FINAL_IP = '192.168.0.14'
+SERVER_FINAL_PUERTO = 5000
 
-SERVER_FINAL_IP = '127.0.0.1'
-SERVER_FINAL_PORT = 5000
-
-DATA_SIZE = 22
-SIG_SIZE = 256
-
-# Cargar clave pública
-def load_public_key(path):
-    with open(path, "rb") as key_file:
-        return serialization.load_pem_public_key(key_file.read())
-
-public_key = load_public_key(PUBLIC_KEY_PATH)
-
-# Verificar firma digital
-def verify_signature(data: bytes, signature: bytes) -> bool:
+# Obtener IP
+# Código obtenido de stackoverflow, pregunta 166506
+def obtener_ip_servidor():
+    s = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
+    s.settimeout(0)
     try:
-        public_key.verify(
-            signature,
-            data,
+        s.connect(('10.254.254.254', 1))
+        IP = s.getsockname()[0]
+    except Exception:
+        IP = '127.0.0.1'
+    finally:
+        s.close()
+    return IP
+
+# Verificar firma paquetes
+def verificar_firma(datos,firma,sensorId):
+    try:
+        with open(f"{sensorId}.pem", "rb") as archivo:
+            clave_pub = serialization.load_pem_public_key(archivo.read())
+        clave_pub.verify(
+            firma,
+            datos,
             padding.PKCS1v15(),
             hashes.SHA256()
         )
-        print(f"Recibido data size: {len(data)}")
-        print(f"Recibido signature size: {len(signature)}")
-
         return True
     except Exception as e:
-        print(f"[!] Firma inválida: {e}")
+        print(f"firma invalida, error: {e}")
         return False
 
-# Decodificar SensorData
-def parse_sensor_data(data: bytes):
-    id, timestamp_raw, temp, pres, hum = struct.unpack('<hQfff', data)
-    str_ts = str(timestamp_raw)
+# Decodificar el struct sensordata
+def parsear_datos_sensor(datos):
+    id, timestamp_raw, temp, pres, hum = struct.unpack('<hQfff', datos)
+    timestamp_string = str(timestamp_raw)
     try:
-        fecha_hora = datetime.strptime(str_ts, "%Y%m%d%H%M%S")
+        fecha_hora = datetime.strptime(timestamp_string, "%Y%m%d%H%M%S")
     except ValueError:
-        fecha_hora = "INVALID_TIMESTAMP"
+        fecha_hora = 0
     return {
         "id": id,
         "timestamp": str(fecha_hora),
@@ -58,57 +58,56 @@ def parse_sensor_data(data: bytes):
         "humedad": hum
     }
 
-# Enviar los datos ya decodificados al servidor final
-def send_to_final_server(sensor_dict: dict):
-    try:
-        with socket.create_connection((SERVER_FINAL_IP, SERVER_FINAL_PORT), timeout=2) as s:
-            payload = json.dumps(sensor_dict).encode('utf-8') + b'\n'
-            s.sendall(payload)
-            print(f"[→] Datos reenviados al servidor final: {sensor_dict}")
-    except Exception as e:
-        print(f"[X] No se pudo enviar al servidor final: {e}")
-
 # Atender una conexión TCP desde el cliente sensor
-def handle_client(conn, addr):
-    print(f"[+] Conexión desde {addr}")
+def recepcion_tcp(conex, ip):
+    print(f"conexion desde {ip}")
+    # 278 es tamaño exacto del paquete de datos + firma
+    # 22 el struct
+    # 256 firma
     try:
-        packet = b''
-        while len(packet) < DATA_SIZE + SIG_SIZE:
-            chunk = conn.recv((DATA_SIZE + SIG_SIZE) - len(packet))
-            if not chunk:
+        paquete = b''
+        while len(paquete) < 278:
+            token = conex.recv((278) - len(paquete))
+            if not token:
                 break
-            packet += chunk
+            paquete += token
 
-        if len(packet) < DATA_SIZE + SIG_SIZE:
-            print("[!] Paquete incompleto")
+        if len(paquete) < 278:
+            print("paquete incompleto!!!!")
             return
 
-        data = packet[:DATA_SIZE]
-        signature = packet[DATA_SIZE:]
+        datos = paquete[:22]
+        firma = paquete[22:]
+        parseado = parsear_datos_sensor(datos)
 
-        if verify_signature(data, signature):
-            parsed = parse_sensor_data(data)
-            print(f"[✓] Firma válida. Datos: {parsed}")
-            send_to_final_server(parsed)
+        if verificar_firma(datos, firma, parseado["id"]):
+            print(f"Firma valida")
+            try:
+                with socket.create_connection((SERVER_FINAL_IP, SERVER_FINAL_PUERTO), timeout=2) as s:
+                    paquete_final = json.dumps(parseado).encode('utf-8') + b'\n'
+                    s.sendall(paquete_final)
+                    print(f"datos reenviados al servidor final: {parseado}")
+            except Exception as e:
+                print(f"no se pudo enviar al servidor final, error: {e}")
         else:
-            print("[X] Firma inválida, datos descartados.")
+            print("Firma invalida, datos descartados")
     except Exception as e:
         import traceback
-        print(f"[!] Error en conexión: {e}")
+        print(f"Error en conexion: {e}")
         traceback.print_exc()
     finally:
-        conn.close()
+        conex.close()
 
 
-# Bucle principal del servidor intermedio
-def start_server():
-    print(f"[~] Escuchando en {IP}:{PORT}...")
+# bucle principal del servidor intermedio
+def servidor():
+    print(f"escuchando en {obtener_ip_servidor()}:{PUERTO}...")
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind((IP, PORT))
+        s.bind((obtener_ip_servidor(), PUERTO))
         s.listen()
         while True:
             conn, addr = s.accept()
-            threading.Thread(target=handle_client, args=(conn, addr), daemon=True).start()
+            threading.Thread(target=recepcion_tcp, args=(conn, addr), daemon=True).start()
 
 if __name__ == "__main__":
-    start_server()
+    servidor()

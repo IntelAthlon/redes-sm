@@ -1,0 +1,10 @@
+{
+  "API_URL": "http://192.168.0.14:8000/api/mediciones",
+  "TEMP_MIN": 21.0,
+  "TEMP_MAX": 29.0,
+  "PRES_MIN": 992.0,
+  "PRES_MAX": 1022.0,
+  "HUM_MIN": 35.0,
+  "HUM_MAX": 68.0,
+  "CONSULTA_INTERVALO": 10
+}

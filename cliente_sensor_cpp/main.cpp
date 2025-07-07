@@ -105,7 +105,7 @@ bool firmar(const uint8_t* datos, size_t tam, vector<uint8_t>& salida){
         if (EVP_DigestSignFinal(ctx,nullptr,&tamanoFirma) == 1) {
             salida.resize(tamanoFirma);
             if (EVP_DigestSignFinal(ctx,salida.data(),&tamanoFirma) == 1) {
-                salida.resize(tamanoFirma);  // Redimensionar por si es más corta
+                salida.resize(tamanoFirma);  // Redimensionar por si es más corta de lo esperado
                 EVP_MD_CTX_free(ctx);
                 EVP_PKEY_free(pkey);
                 return true;
@@ -128,9 +128,6 @@ bool enviarPaquete(SensorData& datos, string &ip, int puerto) {
     vector<uint8_t> firma;
     if (!firmar(buffer,sizeof(SensorData),firma)) {
         cerr<<"Error: No se pudo firmar"<<endl;
-        #ifdef _WIN32
-        WSACleanup();
-        #endif
         return false;
     }
 
@@ -143,9 +140,6 @@ bool enviarPaquete(SensorData& datos, string &ip, int puerto) {
     socklen_t sock = socket(AF_INET,SOCK_STREAM,0);
     if (sock < 0) {
         cerr<<"Error: No se pudo crear el socket"<<endl;
-        #ifdef _WIN32
-        WSACleanup();
-        #endif
         return false;
     }
 
@@ -155,18 +149,12 @@ bool enviarPaquete(SensorData& datos, string &ip, int puerto) {
     if (inet_pton(AF_INET, ip.c_str(), &direccionServidor.sin_addr) <= 0) {
         cerr<<"ip invalida"<<endl;
         CLOSESOCKET(sock);
-        #ifdef _WIN32
-        WSACleanup();
-        #endif
         return false;
     }
 
     if (connect(sock,(sockaddr*)&direccionServidor, sizeof(direccionServidor)) < 0) {
-        cerr<<"no se pudo conectar a"<<ip<<":"<<puerto<<endl;
+        cerr<<"no se pudo conectar a "<<ip<<":"<<puerto<<endl;
         CLOSESOCKET(sock);
-        #ifdef _WIN32
-        WSACleanup();
-        #endif
         return false;
     }
 
@@ -177,9 +165,6 @@ bool enviarPaquete(SensorData& datos, string &ip, int puerto) {
         if (tamanoEnviado <= 0) {
             cerr<<"tamaño de paquete invalido o error al enviar"<<endl;
             CLOSESOCKET(sock);
-            #ifdef _WIN32
-            WSACleanup();
-            #endif
             return false;
         }
         total += tamanoEnviado;
@@ -187,9 +172,6 @@ bool enviarPaquete(SensorData& datos, string &ip, int puerto) {
 
     cout<<"Datos enviados correctamente: ID="<<datos.id<<", Temp="<<datos.temperatura<<", Presion="<<datos.presion<<", Humedad="<<datos.humedad<<endl;
     CLOSESOCKET(sock);
-    #ifdef _WIN32
-    WSACleanup();
-    #endif
     return true;
 }
 
