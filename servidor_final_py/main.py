@@ -81,7 +81,7 @@ def recepcion_datos(conex, ip):
                     if verificar_firma(datos, firma):
                         codificado = base64.b64encode(json.dumps(datos).encode('utf-8')).decode('utf-8')
                         insertar_medicion(codificado)
-                        print(f"Medición almacenada desde sensor {sensor_data['id']}")
+                        print(f"Medición almacenada desde sensor {datos['id']}")
                     else:
                         print("Medición rechazada por firma de servidor inválida")
                     print(f"Servidor final escuchando en {IP}:{PUERTO_RECEPCION} (TCP)")
