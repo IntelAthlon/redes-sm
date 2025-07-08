@@ -99,7 +99,7 @@ def home():
     <!DOCTYPE html>
     <html>
     <head>
-        <title>Dashboard IoT - Alertas y Métricas</title>
+        <title>Dashboard IoT Tiempo Real</title>
         <meta charset="utf-8">
         <style>
             body { font-family: sans-serif; background: #f4f4f4; padding: 20px; }
@@ -112,7 +112,7 @@ def home():
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     </head>
     <body>
-        <h1>📡 Dashboard IoT - Industrial</h1>
+        <h1>📡 Dashboard Sensores</h1>
 
         <div class="container">
             <div class="panel">
@@ -134,7 +134,29 @@ def home():
                 <h2>💧 Humedad</h2>
                 <canvas id="humChart"></canvas>
             </div>
+            
+            <div class="panel" style="width: 100%;">
+                <h2>📋 Historial de Mediciones</h2> <button onclick="cargarTabla()">Actualizar</button>
+                <table id="tabla" border="1" cellpadding="6" style="border-collapse: collapse; width: 100%; background: white;">
+                    <thead>
+                        <tr>
+                            <th>Sensor ID</th>
+                            <th>Timestamp</th>
+                            <th>Temperatura (°C)</th>
+                            <th>Presión (hPa)</th>
+                            <th>Humedad (%)</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+                <div style="margin-top: 10px;">
+                    <button onclick="paginaAnterior()">Anterior</button>
+                    <span id="paginaActual">1</span>
+                    <button onclick="paginaSiguiente()">Siguiente</button>
+                </div>
+            </div>
         </div>
+
 
         <script>
             let tempChart, presChart, humChart;
@@ -211,10 +233,58 @@ def home():
                 actualizarAlertas();
                 actualizarGraficas();
             }, 5000);
+            
+            let datosTabla = [];
+            let pagina = 1;
+            const porPagina = 10;
+            
+            async function cargarTabla() {
+                const res = await fetch('/api/tabla_mediciones');
+                datosTabla = await res.json();
+                renderizarTabla();
+            }
+            
+            function renderizarTabla() {
+                const tbody = document.querySelector("#tabla tbody");
+                tbody.innerHTML = '';
+            
+                const inicio = (pagina - 1) * porPagina;
+                const fin = inicio + porPagina;
+                const paginaDatos = datosTabla.slice(inicio, fin);
+            
+                for (const fila of paginaDatos) {
+                    const tr = document.createElement("tr");
+                    tr.innerHTML = `
+                        <td>${fila.sensor_id}</td>
+                        <td>${fila.timestamp}</td>
+                        <td>${fila.temperatura}</td>
+                        <td>${fila.presion}</td>
+                        <td>${fila.humedad}</td>
+                    `;
+                    tbody.appendChild(tr);
+                }
+            
+                document.getElementById("paginaActual").innerText = pagina;
+            }
+            
+            function paginaSiguiente() {
+                if ((pagina * porPagina) < datosTabla.length) {
+                    pagina++;
+                    renderizarTabla();
+                }
+            }
+            
+            function paginaAnterior() {
+                if (pagina > 1) {
+                    pagina--;
+                    renderizarTabla();
+                }
+            }
 
             window.onload = () => {
                 actualizarAlertas();
                 actualizarGraficas();
+                cargarTabla();
             }
         </script>
     </body>
@@ -240,6 +310,14 @@ def api_ultimas_mediciones():
             sensores[d['sensor_id']] = d
 
     return jsonify(list(sensores.values()))
+
+@app.route('/api/tabla_mediciones')
+def api_tabla_mediciones():
+    # Devuelve todos los datos sin filtrar por tiempo ni sensores activos
+    datos = consultar_api()
+    # Ordena por timestamp descendente (más recientes primero)
+    datos_ordenados = sorted(datos, key=lambda x: x['timestamp'], reverse=True)
+    return jsonify(datos_ordenados)
 
 # --- EJECUCIÓN ---
 if __name__ == "__main__":
