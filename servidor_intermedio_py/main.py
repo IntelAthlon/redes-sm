@@ -3,13 +3,15 @@ import struct
 import threading
 from datetime import datetime
 import json
+import queue
+import time
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives import serialization
 
 # CONFIGURACIÓN
 PUERTO = 4000
-SERVER_FINAL_IP = '192.168.0.14'
+SERVER_FINAL_IP = '192.168.0.40'
 SERVER_FINAL_PUERTO = 5000
 
 # Obtener IP
@@ -58,9 +60,25 @@ def parsear_datos_sensor(datos):
         "humedad": hum
     }
 
+cola_reintentos = queue.Queue()
+# Robustez en sistema: reintentar si conexion a servidor final falla
+def reintentar_envio_periodico():
+    while True:
+        if not cola_reintentos.empty():
+            datos = cola_reintentos.get()
+            try:
+                with socket.create_connection((SERVER_FINAL_IP, SERVER_FINAL_PUERTO), timeout=2) as s:
+                    paquete_final = json.dumps(datos).encode('utf-8') + b'\n'
+                    s.sendall(paquete_final)
+                    print(f"reenvío exitoso desde cola: {datos}")
+            except Exception as e:
+                print(f"reenvío falló, reinsertando en cola: {e}")
+                cola_reintentos.put(datos)
+        time.sleep(5)
+
 # Atender una conexión TCP desde el cliente sensor
-def recepcion_tcp(conex, ip):
-    print(f"conexion desde {ip}")
+def recepcion_tcp(conex, dir):
+    print(f"conexion desde {dir}")
     # 278 es tamaño exacto del paquete de datos + firma
     # 22 el struct
     # 256 firma
@@ -88,7 +106,9 @@ def recepcion_tcp(conex, ip):
                     s.sendall(paquete_final)
                     print(f"datos reenviados al servidor final: {parseado}")
             except Exception as e:
-                print(f"no se pudo enviar al servidor final, error: {e}")
+                print(f"no se pudo enviar al servidor final por error: {e}, se agrega a cola")
+                cola_reintentos.queue.appendleft(parseado)  # mantener en primera posición
+
         else:
             print("Firma invalida, datos descartados")
     except Exception as e:
@@ -98,7 +118,6 @@ def recepcion_tcp(conex, ip):
     finally:
         conex.close()
 
-
 # bucle principal del servidor intermedio
 def servidor():
     print(f"escuchando en {obtener_ip_servidor()}:{PUERTO}...")
@@ -106,8 +125,9 @@ def servidor():
         s.bind((obtener_ip_servidor(), PUERTO))
         s.listen()
         while True:
-            conn, addr = s.accept()
-            threading.Thread(target=recepcion_tcp, args=(conn, addr), daemon=True).start()
+            conex, dir = s.accept()
+            threading.Thread(target=reintentar_envio_periodico, daemon=True).start()
+            threading.Thread(target=recepcion_tcp, args=(conex, dir), daemon=True).start()
 
 if __name__ == "__main__":
     servidor()

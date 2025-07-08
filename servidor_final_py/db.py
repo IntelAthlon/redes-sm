@@ -11,36 +11,47 @@ def inicializar_db():
     c.execute('''
         CREATE TABLE IF NOT EXISTS mediciones (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            sensor_id INTEGER,
-            timestamp TEXT,
+            sensor_id INTEGER NOT NULL,
+            timestamp TEXT NOT NULL,
             temperatura REAL,
             presion REAL,
-            humedad REAL
+            humedad REAL,
+            UNIQUE(sensor_id, timestamp)
         )
     ''')
     conex.commit()
     conex.close()
 
 def insertar_medicion(json_crudo):
-    conex = sqlite3.connect(BASEDATOS)
-    cursor = conex.cursor()
-    cursor.execute('''
-        INSERT INTO mediciones (sensor_id, timestamp, temperatura, presion, humedad)
-        VALUES (?, datetime('now'), NULL, NULL, NULL)
-    ''', (-1,))
-    conex.commit()
-    conex.close()
+    try:
+        # Decodificar JSON desde base64
+        json_decodificado = base64.b64decode(json_crudo.encode('utf-8')).decode('utf-8')
+        datos = json.loads(json_decodificado)
+        assert "id" in datos and "timestamp" in datos # Validación
 
-    data = json.loads(base64.b64decode(json_crudo.encode('utf-8')).decode('utf-8'))
-    conex = sqlite3.connect(BASEDATOS)
-    cursor = conex.cursor()
-    cursor.execute('''
-        UPDATE mediciones
-        SET sensor_id=?, timestamp=?, temperatura=?, presion=?, humedad=?
-        WHERE id=(SELECT MAX(id) FROM mediciones)
-    ''', (data['id'], data['timestamp'], data['temperatura'], data['presion'], data['humedad']))
-    conex.commit()
-    conex.close()
+    except Exception as e:
+        print("Error procesando paquete: ", e)
+        return
+
+    try:
+        conex = sqlite3.connect(BASEDATOS)
+        cursor = conex.cursor()
+        cursor.execute('''
+            INSERT OR IGNORE INTO mediciones (sensor_id, timestamp, temperatura, presion, humedad)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (datos['id'], datos['timestamp'], datos['temperatura'], datos['presion'], datos['humedad']))
+        conex.commit()
+
+        if cursor.rowcount == 0:
+            print("Dato duplicado ignorado: ", datos)
+        else:
+            print("Dato insertado: ", datos)
+
+    except Exception as e:
+        print("Error con base de datos:", e)
+
+    finally:
+        conex.close()
 
 def obtener_mediciones():
     conex = sqlite3.connect(BASEDATOS)
