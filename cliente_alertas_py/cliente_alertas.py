@@ -5,17 +5,14 @@ import time
 import requests
 import socket
 import json
-import os
 from flask import Flask, jsonify, render_template_string
 
 # --- CARGA DE CONFIGURACIÓN ---
-CONFIG_PATH = "config.json"
-
-if not os.path.exists(CONFIG_PATH):
-    raise FileNotFoundError(f"Archivo de configuración no encontrado: {CONFIG_PATH}")
-
-with open(CONFIG_PATH, "r") as f:
-    config = json.load(f)
+try:
+    with open("config.json", "r") as f:
+        config = json.load(f)
+except FileNotFoundError:
+    print("Archivo de configuracion no encontrado")
 
 # --- CONFIGURACIÓN ---
 API_URL = config["API_URL"]
@@ -48,12 +45,20 @@ def obtener_ip_servidor():
 # --- LÓGICA DE ALERTA ---
 def verificar_alertas(medicion):
     alertas = []
+    if medicion["temperatura"] is None:
+        return alertas
 
     if not (TEMP_MIN <= medicion["temperatura"] <= TEMP_MAX):
         alertas.append(f"[{medicion['timestamp']}] Sensor {medicion['sensor_id']} - Temperatura fuera de rango: {medicion['temperatura']} °C")
 
+    if medicion["presion"] is None:
+        return alertas
+
     if not (PRES_MIN <= medicion["presion"] <= PRES_MAX):
         alertas.append(f"[{medicion['timestamp']}] Sensor {medicion['sensor_id']} - Presión fuera de rango: {medicion['presion']} hPa")
+
+    if medicion["humedad"] is None:
+        return alertas
 
     if not (HUM_MIN <= medicion["humedad"] <= HUM_MAX):
         alertas.append(f"[{medicion['timestamp']}] Sensor {medicion['sensor_id']} - Humedad fuera de rango: {medicion['humedad']} %")
@@ -313,11 +318,8 @@ def api_ultimas_mediciones():
 
 @app.route('/api/tabla_mediciones')
 def api_tabla_mediciones():
-    # Devuelve todos los datos sin filtrar por tiempo ni sensores activos
-    datos = consultar_api()
-    # Ordena por timestamp descendente (más recientes primero)
-    datos_ordenados = sorted(datos, key=lambda x: x['timestamp'], reverse=True)
-    return jsonify(datos_ordenados)
+    datos = sorted(consultar_api(), key=lambda x: x['timestamp'], reverse=True) # Ordenar datos de mas recientes a mas antiguos
+    return jsonify(datos)
 
 # --- EJECUCIÓN ---
 if __name__ == "__main__":
