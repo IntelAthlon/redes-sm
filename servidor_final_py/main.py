@@ -4,7 +4,8 @@ import json
 from flask import Flask, jsonify
 from db import inicializar_db, insertar_medicion, obtener_mediciones
 import base64
-
+from cryptography.hazmat.primitives import serialization, hashes
+from cryptography.hazmat.primitives.asymmetric import padding
 from opcua_servidor import iniciar_opcua
 
 
@@ -25,6 +26,26 @@ IP = obtener_ip_servidor()
 PUERTO_RECEPCION = 5000
 PUERTO_API = 8000
 PUERTO_OPCUA = 4840
+
+# Cargar clave pública del servidor intermedio
+with open("pub_intermedio.pem", "rb") as f:
+    CLAVE_PUB_INTERMEDIO = serialization.load_pem_public_key(f.read())
+
+# Verificar firma paquete serv intermedio
+def verificar_firma(mensaje, firma_cod):
+    try:
+        firma = base64.b64decode(firma_cod.encode('utf-8'))
+        serializado = json.dumps(mensaje, separators=(',', ':')).encode('utf-8')
+        CLAVE_PUB_INTERMEDIO.verify(
+            signature=firma,
+            data=serializado,
+            padding=padding.PKCS1v15(),
+            algorithm=hashes.SHA256()
+        )
+        return True
+    except Exception as e:
+        print(f"firma inválida, error: {e}")
+        return False
 
 # Inicializar base de datos
 inicializar_db()
@@ -55,10 +76,14 @@ def recepcion_datos(conex, ip):
                 while b'\n' in buffer:
                     line, buffer = buffer.split(b'\n', 1)
                     sensor_data = json.loads(line.decode('utf-8'))
-                    # Codifica el dict como JSON, luego a base64
-                    codificado = base64.b64encode(json.dumps(sensor_data).encode('utf-8')).decode('utf-8')
-                    insertar_medicion(codificado)
-                    print(f"Medición almacenada desde sensor {sensor_data['id']}")
+                    datos = sensor_data.get("datos")
+                    firma = sensor_data.get("firma")
+                    if verificar_firma(datos, firma):
+                        codificado = base64.b64encode(json.dumps(datos).encode('utf-8')).decode('utf-8')
+                        insertar_medicion(codificado)
+                        print(f"Medición almacenada desde sensor {sensor_data['id']}")
+                    else:
+                        print("Medición rechazada por firma de servidor inválida")
                     print(f"Servidor final escuchando en {IP}:{PUERTO_RECEPCION} (TCP)")
                     print(f"API funcionando en {IP}:{PUERTO_API}")
                     print(f"Servidor OPC UA activo en {IP}:4840")
