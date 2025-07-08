@@ -60,21 +60,26 @@ def parsear_datos_sensor(datos):
         "humedad": hum
     }
 
-cola_reintentos = queue.Queue()
-# Robustez en sistema: reintentar si conexion a servidor final falla
-def reintentar_envio_periodico():
+cola_envios = queue.Queue()
+
+# Robustez en sistema: usar cola constante para que no se pierdan datos
+def enviar_datos_cola():
     while True:
-        if not cola_reintentos.empty():
-            datos = cola_reintentos.get()
-            try:
-                with socket.create_connection((SERVER_FINAL_IP, SERVER_FINAL_PUERTO), timeout=2) as s:
-                    paquete_final = json.dumps(datos).encode('utf-8') + b'\n'
-                    s.sendall(paquete_final)
-                    print(f"reenvío exitoso desde cola: {datos}")
-            except Exception as e:
-                print(f"reenvío falló, reinsertando en cola: {e}")
-                cola_reintentos.put(datos)
-        time.sleep(5)
+        try:
+            datos = cola_envios.get(timeout=1)
+        except queue.Empty:
+            time.sleep(1)
+            continue
+
+        try:
+            with socket.create_connection((SERVER_FINAL_IP, SERVER_FINAL_PUERTO), timeout=2) as s:
+                paquete_final = json.dumps(datos).encode('utf-8') + b'\n'
+                s.sendall(paquete_final)
+                print(f"Enviado desde cola: {datos}")
+        except Exception as e:
+            print(f"Error al enviar: {e}, devolviendo a cola")
+            cola_envios.put(datos)
+            time.sleep(5)  # evitar loop rápido si el servidor final está caído
 
 # Atender una conexión TCP desde el cliente sensor
 def recepcion_tcp(conex, dir):
@@ -99,18 +104,11 @@ def recepcion_tcp(conex, dir):
         parseado = parsear_datos_sensor(datos)
 
         if verificar_firma(datos, firma, parseado["id"]):
-            print(f"Firma valida")
-            try:
-                with socket.create_connection((SERVER_FINAL_IP, SERVER_FINAL_PUERTO), timeout=2) as s:
-                    paquete_final = json.dumps(parseado).encode('utf-8') + b'\n'
-                    s.sendall(paquete_final)
-                    print(f"datos reenviados al servidor final: {parseado}")
-            except Exception as e:
-                print(f"no se pudo enviar al servidor final por error: {e}, se agrega a cola")
-                cola_reintentos.queue.appendleft(parseado)  # mantener en primera posición
-
+            print("Firma válida, encolando paquete")
+            cola_envios.put(parseado)
         else:
             print("Firma invalida, datos descartados")
+
     except Exception as e:
         import traceback
         print(f"Error en conexion: {e}")
@@ -121,12 +119,12 @@ def recepcion_tcp(conex, dir):
 # bucle principal del servidor intermedio
 def servidor():
     print(f"escuchando en {obtener_ip_servidor()}:{PUERTO}...")
+    threading.Thread(target=enviar_datos_cola, daemon=True).start()
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind((obtener_ip_servidor(), PUERTO))
         s.listen()
         while True:
             conex, dir = s.accept()
-            threading.Thread(target=reintentar_envio_periodico, daemon=True).start()
             threading.Thread(target=recepcion_tcp, args=(conex, dir), daemon=True).start()
 
 if __name__ == "__main__":
